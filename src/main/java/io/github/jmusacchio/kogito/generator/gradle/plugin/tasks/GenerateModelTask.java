@@ -33,143 +33,150 @@ import static org.kie.efesto.common.api.constants.Constants.INDEXFILE_DIRECTORY_
 
 @CacheableTask
 public class GenerateModelTask extends AbstractKieTask {
-  public static final PathMatcher drlFileMatcher = FileSystems.getDefault().getPathMatcher("glob:**.drl");
+    public static final PathMatcher drlFileMatcher = FileSystems.getDefault().getPathMatcher("glob:**.drl");
 
-  @org.gradle.api.tasks.Optional
-  @InputFiles
-  @CompileClasspath
-  private File customizableSourcesPath;
+    @org.gradle.api.tasks.Optional
+    @Input
+    private Boolean generatePartial;
 
-  @org.gradle.api.tasks.Optional
-  @Input
-  private Boolean generatePartial;
+    @org.gradle.api.tasks.Optional
+    @Input
+    private Boolean onDemand;
 
-  @org.gradle.api.tasks.Optional
-  @Input
-  private Boolean onDemand;
+    @org.gradle.api.tasks.Optional
+    @Input
+    private Boolean keepSources;
 
-  @org.gradle.api.tasks.Optional
-  @Input
-  private Boolean keepSources;
+    @org.gradle.api.tasks.Optional
+    @Input
+    private String schemaVersion;
 
-  @org.gradle.api.tasks.Optional
-  @Input
-  private String buildOutputDirectory;
+    @Input
+    private String compilerSourceJavaVersion;
 
-  @Inject
-  public GenerateModelTask(KogitoExtension extension, GenerateModelExtension modelExtension) {
-    super(extension);
-    this.customizableSourcesPath = modelExtension.getCustomizableSourcesPath();
-    this.generatePartial = modelExtension.isGeneratePartial();
-    this.onDemand = modelExtension.isOnDemand();
-    this.keepSources = modelExtension.isKeepSources();
-    this.buildOutputDirectory = modelExtension.getBuildOutputDirectory();
-  }
+    @Input
+    private String compilerTargetJavaVersion;
 
-  @TaskAction
-  public void execute() {
-    // TODO to be removed with DROOLS-7090
-    boolean indexFileDirectorySet = false;
-    this.getLogger().debug("execute -> " + getBuildOutputDirectory());
-    if (getBuildOutputDirectory() == null) {
-      throw new RuntimeException("${project.buildDir} is null");
-    } else {
-      if (System.getProperty(INDEXFILE_DIRECTORY_PROPERTY) == null) {
-        System.setProperty(INDEXFILE_DIRECTORY_PROPERTY, getBuildOutputDirectory());
-        indexFileDirectorySet = true;
-      }
-
-      this.addCompileSourceRoots();
-
-      if (getOnDemand()) {
-        this.getLogger().info("On-Demand Mode is On. Use gradle build :scaffold");
-      } else {
-        this.generateModel();
-      }
-
-      if (indexFileDirectorySet) {
-        System.clearProperty(INDEXFILE_DIRECTORY_PROPERTY);
-      }
-    }
-  }
-
-  protected void addCompileSourceRoots() {
-    projectSourceDirectory(this.getProject())
-        .srcDirs(
-            getCustomizableSourcesPath().getPath(),
-            getGeneratedSources().getPath()
-        );
-  }
-
-  protected void generateModel() {
-    this.setSystemProperties(getProperties());
-    ApplicationGenerator appGen = ApplicationGeneratorDiscovery.discover(this.discoverKogitoRuntimeContext(this.projectClassLoader()));
-    Collection<GeneratedFile> generatedFiles;
-    if (getGeneratePartial()) {
-      generatedFiles = appGen.generateComponents();
-    } else {
-      generatedFiles = appGen.generate();
+    @Inject
+    public GenerateModelTask(KogitoExtension extension, GenerateModelExtension modelExtension) {
+        super(extension);
+        this.generatePartial = modelExtension.isGeneratePartial();
+        this.onDemand = modelExtension.isOnDemand();
+        this.keepSources = modelExtension.isKeepSources();
+        this.schemaVersion = modelExtension.getSchemaVersion();
+        this.compilerSourceJavaVersion = modelExtension.getCompilerSourceJavaVersion();
+        this.compilerTargetJavaVersion = modelExtension.getCompilerTargetJavaVersion();
     }
 
-    Map<GeneratedFileType, List<GeneratedFile>> mappedGeneratedFiles = generatedFiles.stream()
-        .collect(Collectors.groupingBy(GeneratedFile::type));
-    mappedGeneratedFiles.entrySet().stream()
-        .filter(entry -> !entry.getKey().equals(COMPILED_CLASS))
-        .forEach(entry -> writeGeneratedFiles(entry.getValue()));
+    @TaskAction
+    public void execute() {
+        getLogger().debug("Compiler Target Java Version:" + compilerTargetJavaVersion);
+        getLogger().debug("Compiler Source Java Version:" + compilerSourceJavaVersion);
+        getLogger().debug("Compiler Source Encoding:" + projectSourceEncoding);
+        getLogger().debug("Targeting directory: " + getOutputDirectory());
 
-    List<GeneratedFile> generatedCompiledFiles = mappedGeneratedFiles.getOrDefault(COMPILED_CLASS,
-            Collections.emptyList())
-        .stream().map(originalGeneratedFile -> new GeneratedFile(COMPILED_CLASS, convertPath(originalGeneratedFile.path().toString()), originalGeneratedFile.contents()))
-        .collect(Collectors.toList());
+        boolean indexFileDirectorySet = false;
+        if (getOutputDirectory() == null) {
+            throw new RuntimeException("${project.buildDir} is null");
+        } else {
+            if (System.getProperty(INDEXFILE_DIRECTORY_PROPERTY) == null) {
+                System.setProperty(INDEXFILE_DIRECTORY_PROPERTY, getOutputDirectory().toString());
+                indexFileDirectorySet = true;
+            }
 
-    writeGeneratedFiles(generatedCompiledFiles);
+            this.addCompileSourceRoots();
 
-    if (!getKeepSources()) {
-      this.deleteDrlFiles();
-    }
-  }
+            if (getOnDemand()) {
+                this.getLogger().info("On-Demand Mode is On. Use gradle build :scaffold");
+            } else {
+                this.generateModel();
+            }
 
-  private String convertPath(String toConvert) {
-    return toConvert.replace('.', File.separatorChar) + ".class";
-  }
-
-  private void deleteDrlFiles() {
-    // Remove drl files
-    try (final Stream<Path> drlFiles = Files.find(getOutputDirectory().toPath(), Integer.MAX_VALUE,
-        (p, f) -> drlFileMatcher.matches(p))) {
-      drlFiles.forEach(p -> {
-        try {
-          Files.delete(p);
-        } catch (IOException e) {
-          throw new UncheckedIOException(e);
+            if (indexFileDirectorySet) {
+                System.clearProperty(INDEXFILE_DIRECTORY_PROPERTY);
+            }
         }
-      });
-    } catch (IOException e) {
-      throw new RuntimeException("Unable to find .drl files");
     }
-  }
 
-  public File getCustomizableSourcesPath() {
-    return customizableSourcesPath;
-  }
+    protected void addCompileSourceRoots() {
+        projectSourceDirectory(this.getProject()).srcDirs(getGeneratedFileWriter().getScaffoldedSourcesDir());
+    }
 
-  public Boolean getGeneratePartial() {
-    return generatePartial;
-  }
+    protected void generateModel() {
+        this.setSystemProperties(getProperties());
+        ApplicationGenerator appGen = ApplicationGeneratorDiscovery.discover(this.discoverKogitoRuntimeContext(this.projectClassLoader()));
+        Collection<GeneratedFile> generatedFiles;
+        if (getGeneratePartial()) {
+            generatedFiles = appGen.generateComponents();
+        } else {
+            generatedFiles = appGen.generate();
+        }
 
-  public Boolean getOnDemand() {
-    return onDemand;
-  }
+        Map<GeneratedFileType, List<GeneratedFile>> mappedGeneratedFiles = generatedFiles.stream()
+                .collect(Collectors.groupingBy(GeneratedFile::type));
+        mappedGeneratedFiles.entrySet().stream()
+                .filter(entry -> !entry.getKey().equals(COMPILED_CLASS))
+                .forEach(entry -> writeGeneratedFiles(entry.getValue()));
 
-  public void setOnDemand(Boolean onDemand) {
-    this.onDemand = onDemand;
-  }
+        List<GeneratedFile> generatedCompiledFiles = mappedGeneratedFiles.getOrDefault(COMPILED_CLASS,
+                        Collections.emptyList())
+                .stream().map(originalGeneratedFile -> new GeneratedFile(COMPILED_CLASS, convertPath(originalGeneratedFile.path().toString()), originalGeneratedFile.contents()))
+                .collect(Collectors.toList());
 
-  public Boolean getKeepSources() {
-    return keepSources;
-  }
+        writeGeneratedFiles(generatedCompiledFiles);
 
-  public String getBuildOutputDirectory() {
-    return buildOutputDirectory;
-  }
+        if (!getKeepSources()) {
+            this.deleteDrlFiles();
+        }
+    }
+
+    private String convertPath(String toConvert) {
+        return toConvert.replace('.', File.separatorChar) + ".class";
+    }
+
+    private void deleteDrlFiles() {
+        // Remove drl files
+        try (final Stream<Path> drlFiles = Files.find(getOutputDirectory().toPath(), Integer.MAX_VALUE,
+                (p, f) -> drlFileMatcher.matches(p))) {
+            drlFiles.forEach(p -> {
+                try {
+                    Files.delete(p);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to find .drl files");
+        }
+    }
+
+
+    public Boolean getGeneratePartial() {
+        return generatePartial;
+    }
+
+    public Boolean getOnDemand() {
+        return onDemand;
+    }
+
+    public void setOnDemand(Boolean onDemand) {
+        this.onDemand = onDemand;
+    }
+
+    public Boolean getKeepSources() {
+        return keepSources;
+    }
+
+
+    public String getSchemaVersion() {
+        return schemaVersion;
+    }
+
+    public String getCompilerSourceJavaVersion() {
+        return compilerSourceJavaVersion;
+    }
+
+    public String getCompilerTargetJavaVersion() {
+        return compilerTargetJavaVersion;
+    }
 }

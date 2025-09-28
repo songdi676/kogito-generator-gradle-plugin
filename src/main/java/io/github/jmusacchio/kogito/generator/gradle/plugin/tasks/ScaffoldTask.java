@@ -10,24 +10,24 @@ import static io.github.jmusacchio.kogito.generator.gradle.plugin.util.Util.proj
 
 public class ScaffoldTask extends GenerateModelTask {
 
-  @Inject
-  public ScaffoldTask(KogitoExtension extension, GenerateModelExtension modelExtension) {
-    super(extension, modelExtension);
-    setOutputDirectory(getProject().getProjectDir());
-    setGeneratedSources(
-        projectSourceDirectory(this.getProject())
-            .getSrcDirs()
-            .stream()
-            .findFirst()
-            .orElse(getGeneratedSources())
-    );
-    setOnDemand(true);
-  }
+    @Inject
+    public ScaffoldTask(KogitoExtension extension, GenerateModelExtension modelExtension) {
+        super(extension, modelExtension);
+        setOutputDirectory(getProject().getProjectDir());
+        setBaseDir(
+                projectSourceDirectory(this.getProject())
+                        .getSrcDirs()
+                        .stream()
+                        .findFirst()
+                        .orElse(getBaseDir())
+        );
+        setOnDemand(true);
+    }
 
-  @TaskAction
-  @Override
-  public void execute() {
-    addCompileSourceRoots();
-    generateModel();
-  }
+    @TaskAction
+    @Override
+    public void execute() {
+        addCompileSourceRoots();
+        generateModel();
+    }
 }

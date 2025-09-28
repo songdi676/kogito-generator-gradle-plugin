@@ -5,26 +5,31 @@ plugins {
 
 group 'io.github.jmusacchio'
 
-version "${kogitoVersion}"
+version "3.0.0-NL-SNAPSHOT"
 
 description = """
 This plugin is a port/translation of kogito-maven-plugin for gradle.
 """
 ext.isReleaseVersion = !version.endsWith('SNAPSHOT')
 
-sourceCompatibility = 11
-targetCompatibility = 11
+java.sourceCompatibility = 17
+java.targetCompatibility = 17
 
 repositories {
-    mavenLocal()
+   // mavenLocal()
+    maven {
+        url = uri('http://10.1.4.161:8085/repository/public')
+        allowInsecureProtocol = true
+    }
+    maven { url 'https://maven.aliyun.com/repository/public' }
     maven {
         url 'https://repo1.maven.org/maven2'
     }
 }
 
 dependencies {
-    implementation platform("org.kie.kogito:kogito-pmml-dependencies:${version}")
-    implementation platform("org.kie.kogito:kogito-kie-bom:${version}")
+    implementation platform("org.kie.kogito:kogito-pmml-dependencies:${kogitoVersion}")
+    implementation platform("org.kie.kogito:kogito-kie-bom:${kogitoVersion}")
     implementation 'org.kie.kogito:kogito-codegen-core'
     implementation 'org.kie.kogito:kogito-codegen-processes'
     implementation 'org.kie.kogito:kogito-codegen-rules'
@@ -73,20 +78,17 @@ publishing {
 }
 
 gradlePlugin {
+    website = 'https://github.com/jmusacchio/kogito-generator-gradle-plugin'
+    vcsUrl = 'https://github.com/jmusacchio/kogito-generator-gradle-plugin.git'
     plugins {
         kogitoGenerator {
             id = 'io.github.jmusacchio.kogito.generator'
             implementationClass = 'io.github.jmusacchio.kogito.generator.gradle.plugin.KogitoPlugin'
             displayName = 'Kogito Generator Gradle Plugin'
             description = project.description
+            tags = [ 'kogito', 'bpmn', 'drl', 'dmn', 'optaPlanner']
         }
     }
-}
-
-pluginBundle {
-    website = 'https://github.com/jmusacchio/kogito-generator-gradle-plugin'
-    vcsUrl = 'https://github.com/jmusacchio/kogito-generator-gradle-plugin.git'
-    tags = [ 'kogito', 'bpmn', 'drl', 'dmn', 'optaPlanner']
 }
 
 signing {

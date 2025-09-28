@@ -1,64 +1,75 @@
 package io.github.jmusacchio.kogito.generator.gradle.plugin.extensions;
 
 import org.gradle.api.Project;
-import org.kie.kogito.codegen.core.utils.GeneratedFileWriter;
 
-import java.io.File;
+import static org.kie.kogito.codegen.json.JsonSchemaGenerator.DEFAULT_SCHEMA_VERSION;
 
 public class GenerateModelExtension {
 
-  private File customizableSourcesPath;
+    private boolean generatePartial;
 
-  private boolean generatePartial;
+    private boolean onDemand;
 
-  private boolean onDemand;
+    private boolean keepSources;
 
-  private boolean keepSources;
+    private String schemaVersion;
 
-  private String buildOutputDirectory;
+    private String compilerSourceJavaVersion;
 
-  public GenerateModelExtension(Project project) {
-    customizableSourcesPath = new File(project.getBuildDir() + "/" + GeneratedFileWriter.DEFAULT_SOURCES_DIR);
-    buildOutputDirectory = project.getBuildDir() + "/classes";
-  }
+    private String compilerTargetJavaVersion;
 
-  public File getCustomizableSourcesPath() {
-    return customizableSourcesPath;
-  }
+    public GenerateModelExtension() {
+        schemaVersion = DEFAULT_SCHEMA_VERSION.name();
+        compilerSourceJavaVersion = "17";
+        compilerTargetJavaVersion = "17";
+    }
 
-  public void setCustomizableSourcesPath(File customizableSourcesPath) {
-    this.customizableSourcesPath = customizableSourcesPath;
-  }
 
-  public boolean isGeneratePartial() {
-    return generatePartial;
-  }
+    public boolean isGeneratePartial() {
+        return generatePartial;
+    }
 
-  public void setGeneratePartial(boolean generatePartial) {
-    this.generatePartial = generatePartial;
-  }
+    public void setGeneratePartial(boolean generatePartial) {
+        this.generatePartial = generatePartial;
+    }
 
-  public boolean isOnDemand() {
-    return onDemand;
-  }
+    public boolean isOnDemand() {
+        return onDemand;
+    }
 
-  public void setOnDemand(boolean onDemand) {
-    this.onDemand = onDemand;
-  }
+    public void setOnDemand(boolean onDemand) {
+        this.onDemand = onDemand;
+    }
 
-  public boolean isKeepSources() {
-    return keepSources;
-  }
+    public boolean isKeepSources() {
+        return keepSources;
+    }
 
-  public void setKeepSources(boolean keepSources) {
-    this.keepSources = keepSources;
-  }
+    public void setKeepSources(boolean keepSources) {
+        this.keepSources = keepSources;
+    }
 
-  public String getBuildOutputDirectory() {
-    return buildOutputDirectory;
-  }
+    public String getSchemaVersion() {
+        return schemaVersion;
+    }
 
-  public void setBuildOutputDirectory(String buildOutputDirectory) {
-    this.buildOutputDirectory = buildOutputDirectory;
-  }
+    public void setSchemaVersion(String schemaVersion) {
+        this.schemaVersion = schemaVersion;
+    }
+
+    public String getCompilerSourceJavaVersion() {
+        return compilerSourceJavaVersion;
+    }
+
+    public void setCompilerSourceJavaVersion(String compilerSourceJavaVersion) {
+        this.compilerSourceJavaVersion = compilerSourceJavaVersion;
+    }
+
+    public String getCompilerTargetJavaVersion() {
+        return compilerTargetJavaVersion;
+    }
+
+    public void setCompilerTargetJavaVersion(String compilerTargetJavaVersion) {
+        this.compilerTargetJavaVersion = compilerTargetJavaVersion;
+    }
 }

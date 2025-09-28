@@ -30,7 +30,7 @@ public class KogitoPlugin implements Plugin<Project> {
   public void apply(Project project) {
     project.getPlugins().withType(JavaPlugin.class, javaPlugin -> {
       KogitoExtension extension = project.getExtensions().create(KOGITO_EXTENSION, KogitoExtension.class, project);
-      GenerateModelExtension generateModelExtension = project.getExtensions().create(GENERATE_MODEL_TASK, GenerateModelExtension.class, project);
+      GenerateModelExtension generateModelExtension = project.getExtensions().create(GENERATE_MODEL_TASK, GenerateModelExtension.class);
       ProcessClassesExtension processClassesExtension = project.getExtensions().create(PROCESS_CLASSES_TASK, ProcessClassesExtension.class);
 
       project.afterEvaluate(p -> {

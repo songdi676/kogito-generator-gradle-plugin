@@ -38,97 +38,97 @@ import static io.github.jmusacchio.kogito.generator.gradle.plugin.util.Util.clas
 
 @CacheableTask
 public class ProcessClassesTask extends AbstractKieTask {
-  private static final JavaCompiler JAVA_COMPILER = JavaCompilerFactory.loadCompiler(JavaConfiguration.CompilerType.NATIVE, "1.8");
+    private static final JavaCompiler JAVA_COMPILER = JavaCompilerFactory.loadCompiler(JavaConfiguration.CompilerType.NATIVE, "1.8");
 
-  @org.gradle.api.tasks.Optional
-  @Input
-  private String schemaVersion;
+    @org.gradle.api.tasks.Optional
+    @Input
+    private String schemaVersion;
 
-  @Inject
-  public ProcessClassesTask(KogitoExtension extension, ProcessClassesExtension processClassesExtension, AbstractCompile compile) {
-    super(extension);
-    this.schemaVersion = processClassesExtension.getSchemaVersion();
-    setOutputDirectory(compile.getDestinationDir());
-  }
-
-  @TaskAction
-  public void execute() {
-    try {
-      JavaCompilerSettings settings = new JavaCompilerSettings();
-
-      classpathFiles(getProject())
-          .stream()
-          .forEach(file -> settings.addClasspath(file));
-
-      @SuppressWarnings({ "rawtype", "unchecked" })
-      Set<Class<?>> modelClasses = (Set) getReflections().getSubTypesOf(Model.class);
-
-      ReflectionProtoGenerator protoGenerator = ReflectionProtoGenerator.builder()
-          .build(modelClasses);
-
-      ClassLoader classLoader = projectClassLoader();
-      KogitoBuildContext context = discoverKogitoRuntimeContext(classLoader);
-
-      // Generate persistence files
-      PersistenceGenerator persistenceGenerator = new PersistenceGenerator(context, protoGenerator, new ReflectionMarshallerGenerator(context, protoGenerator.getDataClasses()));
-      Collection<GeneratedFile> persistenceFiles = persistenceGenerator.generate();
-
-      validateGeneratedFileTypes(persistenceFiles, asList(GeneratedFileType.Category.SOURCE, GeneratedFileType.Category.INTERNAL_RESOURCE, GeneratedFileType.Category.STATIC_HTTP_RESOURCE));
-
-      Collection<GeneratedFile> generatedClasses = persistenceFiles.stream().filter(x -> x.category().equals(GeneratedFileType.Category.SOURCE)).collect(Collectors.toList());
-      Collection<GeneratedFile> generatedResources = persistenceFiles.stream()
-          .filter(x -> x.category().equals(GeneratedFileType.Category.INTERNAL_RESOURCE) || x.category().equals(GeneratedFileType.Category.STATIC_HTTP_RESOURCE))
-          .collect(Collectors.toList());
-
-      // Compile and write persistence files
-      compileAndWriteClasses(generatedClasses, classLoader, settings);
-
-      // Dump resources
-      generatedResources.forEach(this::writeGeneratedFile);
-
-      // Json schema generation
-      Stream<Class<?>> processClassStream = getReflections().getTypesAnnotatedWith(ProcessInput.class).stream();
-      generateJsonSchema(processClassStream).forEach(this::writeGeneratedFile);
-
-      Stream<Class<?>> userTaskClassStream = getReflections().getTypesAnnotatedWith(UserTask.class).stream();
-      generateJsonSchema(userTaskClassStream).forEach(this::writeGeneratedFile);
-    } catch (Exception var12) {
-      throw new RuntimeException("Error during processing model classes", var12);
-    }
-  }
-
-  private void compileAndWriteClasses(Collection<GeneratedFile> generatedClasses, ClassLoader cl, JavaCompilerSettings settings) {
-    MemoryFileSystem srcMfs = new MemoryFileSystem();
-    MemoryFileSystem trgMfs = new MemoryFileSystem();
-
-    String[] sources = new String[generatedClasses.size()];
-    int index = 0;
-    for (GeneratedFile entry : generatedClasses) {
-      String fileName = entry.relativePath();
-      sources[index++] = fileName;
-      srcMfs.write(fileName, entry.contents());
+    @Inject
+    public ProcessClassesTask(KogitoExtension extension, ProcessClassesExtension processClassesExtension, AbstractCompile compile) {
+        super(extension);
+        this.schemaVersion = processClassesExtension.getSchemaVersion();
+        setOutputDirectory(compile.getDestinationDirectory().getAsFile().getOrNull());
     }
 
-    if (sources.length > 0) {
-      CompilationResult result = JAVA_COMPILER.compile(sources, srcMfs, trgMfs, cl, settings);
-      if (result.getErrors().length > 0) {
-        throw new RuntimeException(Arrays.toString(result.getErrors()));
-      }
+    @TaskAction
+    public void execute() {
+        try {
+            JavaCompilerSettings settings = new JavaCompilerSettings();
 
-      for (PortablePath path : trgMfs.getFilePaths()) {
-        byte[] data = trgMfs.getBytes(path);
-        writeGeneratedFile(new GeneratedFile(GeneratedFileType.COMPILED_CLASS, path.asString(), data));
-      }
+            classpathFiles(getProject())
+                    .stream()
+                    .forEach(file -> settings.addClasspath(file));
+
+            @SuppressWarnings({"rawtype", "unchecked"})
+            Set<Class<?>> modelClasses = (Set) getReflections().getSubTypesOf(Model.class);
+
+            ReflectionProtoGenerator protoGenerator = ReflectionProtoGenerator.builder()
+                    .build(modelClasses);
+
+            ClassLoader classLoader = projectClassLoader();
+            KogitoBuildContext context = discoverKogitoRuntimeContext(classLoader);
+
+            // Generate persistence files
+            PersistenceGenerator persistenceGenerator = new PersistenceGenerator(context, protoGenerator, new ReflectionMarshallerGenerator(context, protoGenerator.getDataClasses()));
+            Collection<GeneratedFile> persistenceFiles = persistenceGenerator.generate();
+
+            validateGeneratedFileTypes(persistenceFiles, asList(GeneratedFileType.Category.SOURCE, GeneratedFileType.Category.INTERNAL_RESOURCE, GeneratedFileType.Category.STATIC_HTTP_RESOURCE));
+
+            Collection<GeneratedFile> generatedClasses = persistenceFiles.stream().filter(x -> x.category().equals(GeneratedFileType.Category.SOURCE)).collect(Collectors.toList());
+            Collection<GeneratedFile> generatedResources = persistenceFiles.stream()
+                    .filter(x -> x.category().equals(GeneratedFileType.Category.INTERNAL_RESOURCE) || x.category().equals(GeneratedFileType.Category.STATIC_HTTP_RESOURCE))
+                    .collect(Collectors.toList());
+
+            // Compile and write persistence files
+            compileAndWriteClasses(generatedClasses, classLoader, settings);
+
+            // Dump resources
+            generatedResources.forEach(this::writeGeneratedFile);
+
+            // Json schema generation
+            Stream<Class<?>> processClassStream = getReflections().getTypesAnnotatedWith(ProcessInput.class).stream();
+            generateJsonSchema(processClassStream).forEach(this::writeGeneratedFile);
+
+            Stream<Class<?>> userTaskClassStream = getReflections().getTypesAnnotatedWith(UserTask.class).stream();
+            generateJsonSchema(userTaskClassStream).forEach(this::writeGeneratedFile);
+        } catch (Exception var12) {
+            throw new RuntimeException("Error during processing model classes", var12);
+        }
     }
-  }
 
-  private Collection<GeneratedFile> generateJsonSchema(Stream<Class<?>> classes) throws IOException {
-    return new JsonSchemaGenerator.ClassBuilder(classes)
-        .withSchemaVersion(getSchemaVersion()).build()
-        .generate();
-  }
+    private void compileAndWriteClasses(Collection<GeneratedFile> generatedClasses, ClassLoader cl, JavaCompilerSettings settings) {
+        MemoryFileSystem srcMfs = new MemoryFileSystem();
+        MemoryFileSystem trgMfs = new MemoryFileSystem();
 
-  public String getSchemaVersion() {
-    return schemaVersion;
-  }
+        String[] sources = new String[generatedClasses.size()];
+        int index = 0;
+        for (GeneratedFile entry : generatedClasses) {
+            String fileName = entry.relativePath();
+            sources[index++] = fileName;
+            srcMfs.write(fileName, entry.contents());
+        }
+
+        if (sources.length > 0) {
+            CompilationResult result = JAVA_COMPILER.compile(sources, srcMfs, trgMfs, cl, settings);
+            if (result.getErrors().length > 0) {
+                throw new RuntimeException(Arrays.toString(result.getErrors()));
+            }
+
+            for (PortablePath path : trgMfs.getFilePaths()) {
+                byte[] data = trgMfs.getBytes(path);
+                writeGeneratedFile(new GeneratedFile(GeneratedFileType.COMPILED_CLASS, path.asString(), data));
+            }
+        }
+    }
+
+    private Collection<GeneratedFile> generateJsonSchema(Stream<Class<?>> classes) throws IOException {
+        return new JsonSchemaGenerator.ClassBuilder(classes)
+                .withSchemaVersion(getSchemaVersion()).build()
+                .generate();
+    }
+
+    public String getSchemaVersion() {
+        return schemaVersion;
+    }
 }
